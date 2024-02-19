@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Roboto', sans-serif;
+      background: url('your-background-image-url.jpg') center/cover no-repeat fixed;
+    }
+    canvas {
+      display: block;
+    }
+    #gameOverScreen {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      user-select: none; /* Disable text selection */
+    }
+    #restartButton {
+      cursor: pointer;
+      padding: 15px 30px;
+      font-size: 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin-top: 20px;
+      transition: background-color 0.3s ease;
+    }
+    #restartButton:hover {
+      background-color: #45a049;
+    }
+    #killsCounter {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: white;
+      font-size: 24px;
+      user-select: none; /* Disable text selection */
+    }
+    #controlsText {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: white;
+      font-size: 20px;
+      border: 2px solid white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      user-select: none; /* Disable text selection */
+    }
+  </style>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap">
+  <title>Silly Shooter Game (Demo)</title>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="gameOverScreen">
+    <h1>Game Over</h1>
+    <p id="killsCounterGameOver"></p>
+    <button id="restartButton">Restart</button>
+  </div>
+  <p id="killsCounter"></p>
+  <p id="controlsText">Controls: WASD to move, LMB to shoot, Shift to dash!</p>
+  <script>
+    const keys = {
+      w: false,
+      a: false,
+      s: false,
+      d: false
+    };
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: 'Roboto', sans-serif;
+        background: url('your-background-image-url.jpg') center/cover no-repeat fixed;
+      }
+      canvas {
+        display: block;
+      }
+      #gameOverScreen {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        user-select: none; /* Disable text selection */
+      }
+      #restartButton {
+        cursor: pointer;
+        padding: 15px 30px;
+        font-size: 20px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        margin-top: 20px;
+        transition: background-color 0.3s ease;
+      }
+      #restartButton:hover {
+        background-color: #45a049;
+      }
+      #killsCounter {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        color: black;
+        font-size: 24px;
+        user-select: none; /* Disable text selection */
+      }
+      #controlsText {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: black;
+        font-size: 20px;
+        border: 2px solid white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        user-select: none; /* Disable text selection */
+      }
+    `;
+    document.head.appendChild(style);
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const restartButton = document.getElementById('restartButton');
+    const killsCounter = document.getElementById('killsCounter');
+    const killsCounterGameOver = document.getElementById('killsCounterGameOver');
+
+    let gameRunning = false;
+    let squareSpeed = 2; // Initial speed of squares
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: 20,
+      color: 'blue',
+      speed: 15,
+      dashDistance: 300, // Adjust dash distance as needed
+      dashSpeed: 45, // Adjust dash speed as needed
+      isDashing: false,
+      dashStartTime: 0,
+    };
+
+    let bullets = [];
+    let squares = [];
+    let kills = 0;
+    const bulletSpeed = 8;
+
+    function drawPlayer() {
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      ctx.fillStyle = player.color;
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawBullets() {
+      bullets.forEach(bullet => {
+        ctx.beginPath();
+        ctx.rect(bullet.x, bullet.y, 10, 10);
+        ctx.fillStyle = 'red';
+        ctx.fill();
+        ctx.closePath();
+      });
+    }
+
+    function drawSquares() {
+      squares.forEach(square => {
+        ctx.beginPath();
+        ctx.rect(square.x, square.y, 30, 30); // Increased square size
+        ctx.fillStyle = 'green';
+        ctx.fill();
+        ctx.closePath();
+      });
+    }
+
+    function updatePlayerPosition() {
+      // Add movement logic for the player here
+      if (!player.isDashing) {
+        if (keys.w && player.y - player.radius > 0) {
+          player.y -= player.speed;
+        }
+        if (keys.a && player.x - player.radius > 0) {
+          player.x -= player.speed;
+        }
+        if (keys.s && player.y + player.radius < canvas.height) {
+          player.y += player.speed;
+        }
+        if (keys.d && player.x + player.radius < canvas.width) {
+          player.x += player.speed;
+        }
+      }
+    }
+
+    function updateBulletsPosition() {
+      bullets = bullets.filter(bullet => bullet.y > 0);
+      bullets.forEach(bullet => {
+        bullet.y -= bulletSpeed;
+        checkBulletSquareCollision(bullet);
+      });
+    }
+
+    function updateSquaresPosition() {
+      squares = squares.filter(square => square.y < canvas.height);
+      squares.forEach(square => {
+        square.y += squareSpeed; // Use squareSpeed for vertical movement
+        checkPlayerSquareCollision(square);
+        checkBottomCollision(square);
+      });
+    }
+
+    function checkBulletSquareCollision(bullet) {
+      squares = squares.filter(square => {
+        if (
+          bullet.x < square.x + 30 &&
+          bullet.x + 10 > square.x &&
+          bullet.y < square.y + 30 &&
+          bullet.y + 10 > square.y
+        ) {
+          kills++;
+          return false; // Remove square if hit by bullet
+        }
+        return true;
+      });
+    }
+
+    function checkPlayerSquareCollision(square) {
+      if (
+        player.x < square.x + 30 &&
+        player.x + player.radius * 2 > square.x &&
+        player.y < square.y + 30 &&
+        player.y + player.radius * 2 > square.y
+      ) {
+        // Game Over
+        showGameOverScreen();
+      }
+    }
+
+    function checkBottomCollision(square) {
+      if (square.y + 30 >= canvas.height) {
+        // Game Over
+        showGameOverScreen();
+      }
+    }
+
+    function spawnSquare() {
+      if (Math.random() < 0.02) { // Adjust the probability to control the spawn rate
+        squares.push({
+          x: Math.random() * (canvas.width - 30),
+          y: 0
+        });
+      }
+    }
+
+    function showGameOverScreen() {
+      gameRunning = false;
+      gameOverScreen.style.display = 'block';
+      killsCounterGameOver.textContent = `Kills: ${kills}`;
+      restartButton.addEventListener('click', restartGame);
+    }
+
+    function restartGame() {
+      gameOverScreen.style.display = 'none';
+      kills = 0;
+      player.x = canvas.width / 2;
+      player.y = canvas.height / 2;
+      bullets = [];
+      squares = [];
+      squareSpeed = 2; // Reset square speed
+      killsCounter.textContent = `Kills: ${kills}`;
+      gameRunning = true;
+      gameLoop();
+    }
+
+    function increaseSpeed() {
+      if (kills % 10 === 0 && kills > 0) {
+        squareSpeed += 0.1; // Increase square speed every 10 kills
+      }
+    }
+
+    function dash() {
+      player.isDashing = true;
+      player.dashStartTime = Date.now();
+    }
+
+    function updateDash() {
+      if (player.isDashing) {
+        const elapsed = Date.now() - player.dashStartTime;
+        const dashProgress = elapsed / 200; // Adjust dash duration as needed
+        if (dashProgress <= 1) {
+          const dashX = keys.d - keys.a;
+          const dashY = keys.s - keys.w;
+          const dashDistance = player.dashSpeed * dashProgress;
+          player.x += dashX * dashDistance;
+          player.y += dashY * dashDistance;
+        } else {
+          player.isDashing = false;
+        }
+      }
+    }
+
+    function drawTrail() {
+      // Draw faded trail
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      const gradient = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, player.radius);
+      gradient.addColorStop(0, 'rgba(0, 0, 255, 0.7)');
+      gradient.addColorStop(1, 'rgba(0, 0, 255, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function gameLoop() {
+      if (gameRunning) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        updatePlayerPosition();
+        updateDash();
+        drawTrail();
+        drawPlayer();
+
+        updateBulletsPosition();
+        drawBullets();
+
+        updateSquaresPosition();
+        drawSquares();
+
+        spawnSquare();
+
+        increaseSpeed(); // Check if speed needs to be increased
+
+        killsCounter.textContent = `Kills: ${kills}`;
+
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    canvas.addEventListener('mousedown', () => {
+      bullets.push({ x: player.x - 15, y: player.y - player.radius });
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key in keys) {
+        keys[event.key] = true;
+      }
+
+      if (event.key === 'Shift') {
+        dash();
+      }
+    });
+
+    window.addEventListener('keyup', (event) => {
+      if (event.key in keys) {
+        keys[event.key] = false;
+      }
+    });
+
+    restartGame(); // Start the game initially
+  </script>
+</body>
+</html>
