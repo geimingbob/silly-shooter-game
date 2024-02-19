@@ -7,7 +7,7 @@
     body {
       margin: 0;
       overflow: hidden;
-      font-family: 'Roboto', sans-serif;
+      font-family: 'Roboto', comic-sans;
       background: url('your-background-image-url.jpg') center/cover no-repeat fixed;
     }
     canvas {
@@ -44,7 +44,7 @@
       position: absolute;
       bottom: 20px;
       left: 20px;
-      color: white;
+      color: black;
       font-size: 24px;
       user-select: none; /* Disable text selection */
     }
@@ -52,16 +52,24 @@
       position: absolute;
       top: 20px;
       left: 20px;
-      color: white;
+      color: black;
       font-size: 20px;
       border: 2px solid white;
       padding: 5px 10px;
       border-radius: 5px;
       user-select: none; /* Disable text selection */
     }
+    #powerUpText {
+      position: absolute;
+      top: 60px;
+      left: 20px;
+      color: white;
+      font-size: 20px;
+      user-select: none; /* Disable text selection */
+    }
   </style>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap">
-  <title>Silly Shooter Game (Demo)</title>
+  <title>Silly Shooter Game</title>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
@@ -72,6 +80,7 @@
   </div>
   <p id="killsCounter"></p>
   <p id="controlsText">Controls: WASD to move, LMB to shoot, Shift to dash!</p>
+  <p id="powerUpText"></p>
   <script>
     const keys = {
       w: false,
@@ -132,9 +141,17 @@
         left: 20px;
         color: black;
         font-size: 20px;
-        border: 2px solid white;
+        border: 2px solid black;
         padding: 5px 10px;
         border-radius: 5px;
+        user-select: none; /* Disable text selection */
+      }
+      #powerUpText {
+        position: absolute;
+        top: 60px;
+        left: 20px;
+        color: black;
+        font-size: 20px;
         user-select: none; /* Disable text selection */
       }
     `;
@@ -146,6 +163,7 @@
     const restartButton = document.getElementById('restartButton');
     const killsCounter = document.getElementById('killsCounter');
     const killsCounterGameOver = document.getElementById('killsCounterGameOver');
+    const powerUpText = document.getElementById('powerUpText');
 
     let gameRunning = false;
     let squareSpeed = 2; // Initial speed of squares
@@ -181,7 +199,7 @@
     function drawBullets() {
       bullets.forEach(bullet => {
         ctx.beginPath();
-        ctx.rect(bullet.x, bullet.y, 10, 10);
+        ctx.rect(bullet.x, bullet.y, bullet.size, bullet.size);
         ctx.fillStyle = 'red';
         ctx.fill();
         ctx.closePath();
@@ -237,9 +255,9 @@
       squares = squares.filter(square => {
         if (
           bullet.x < square.x + 30 &&
-          bullet.x + 10 > square.x &&
+          bullet.x + bullet.size > square.x &&
           bullet.y < square.y + 30 &&
-          bullet.y + 10 > square.y
+          bullet.y + bullet.size > square.y
         ) {
           kills++;
           return false; // Remove square if hit by bullet
@@ -298,7 +316,7 @@
 
     function increaseSpeed() {
       if (kills % 10 === 0 && kills > 0) {
-        squareSpeed += 0.05; // Increase square speed every 10 kills
+        squareSpeed += 0.1; // Increase square speed every 10 kills
       }
     }
 
@@ -361,7 +379,7 @@
     }
 
     canvas.addEventListener('mousedown', () => {
-      bullets.push({ x: player.x - 15, y: player.y - player.radius });
+      bullets.push({ x: player.x - 15, y: player.y - player.radius, size: 10 });
     });
 
     window.addEventListener('keydown', (event) => {
